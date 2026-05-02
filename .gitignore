@@ -132,4 +132,13 @@ dmypy.json
 .pyre/
 
 #Dataset
-datasets/
+datasets/*.csv
+datasets/*.hdf5
+datasets/*.zip
+datasets/train-image/
+datasets/test-image/
+datasets/splits/
+.env
+results/
+__pycache__/
+*.pyc
