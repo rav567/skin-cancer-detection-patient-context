@@ -1,3 +1,8 @@
+"""
+Evaluation metrics for binary classification: partial AUC (pAUC), standard AUC, sensitivity at specificity, and F1 at threshold.
+
+"""
+
 import logging
 from typing import Dict
 
@@ -10,6 +15,7 @@ MIN_TPR = 0.80
 
 
 def partial_auc_above_tpr(y_true: np.ndarray, y_pred: np.ndarray, min_tpr: float = MIN_TPR) -> float:
+    """Compute partial AUC from a minimum TPR (default 0.80) to 1.0, using inverted ROC."""
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)
 
@@ -31,6 +37,7 @@ def partial_auc_above_tpr(y_true: np.ndarray, y_pred: np.ndarray, min_tpr: float
 
 
 def standard_auc(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Compute standard ROC‑AUC; returns 0.5 if only one class present."""
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)
     if len(np.unique(y_true)) < 2:
@@ -40,6 +47,7 @@ def standard_auc(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 
 
 def sensitivity_at_specificity(y_true: np.ndarray, y_pred: np.ndarray, target_specificity: float = 0.90) -> float:
+    """Return sensitivity (recall) at a given specificity threshold (default 0.90)."""
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)
     if len(np.unique(y_true)) < 2:
@@ -50,6 +58,7 @@ def sensitivity_at_specificity(y_true: np.ndarray, y_pred: np.ndarray, target_sp
 
 
 def f1_at_threshold(y_true: np.ndarray, y_pred: np.ndarray, threshold: float = 0.5) -> float:
+    """Compute F1 score after binarizing predictions at a fixed threshold (default 0.5)."""
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)
     y_pred_binary = (y_pred >= threshold).astype(int)
@@ -57,6 +66,7 @@ def f1_at_threshold(y_true: np.ndarray, y_pred: np.ndarray, threshold: float = 0
 
 
 def compute_all_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
+    """Return dictionary with all four key metrics: pAUC, AUC, sensitivity, and F1."""
     return {
         "pauc_above_80tpr": partial_auc_above_tpr(y_true, y_pred),
         "auc": standard_auc(y_true, y_pred),

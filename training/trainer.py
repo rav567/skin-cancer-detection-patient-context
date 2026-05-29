@@ -1,14 +1,18 @@
+"""
+Multi‑seed, cross‑validated training loop with SWA, AMP, patient context caching, and experiment tracking.
+
+"""
+
 import copy
 import json
 import logging
 import time
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, Optional
 
 import numpy as np
 import pandas as pd
 import torch
-import torch.nn as nn
 from torch.optim import AdamW
 from torch.optim.swa_utils import AveragedModel, SWALR
 from torch.utils.data import DataLoader
@@ -18,7 +22,7 @@ from datasets.samplers import get_sampler
 from datasets.transforms import get_transforms
 from training.losses import compute_pos_weight, get_loss_function
 from training.metrics import compute_all_metrics
-from training.stats import bootstrap_confidence_interval, summarise_configuration
+from training.stats import summarise_configuration
 from utils.seed import seed_dataloader_worker, set_seed
 
 logger = logging.getLogger(__name__)
@@ -28,7 +32,7 @@ DEFAULT_CONFIG = {
     "splits_path": "datasets/splits/subsampled_with_folds.csv",
     "image_size": 128,
     "batch_size": 32,
-    "num_workers": 0,
+    "num_workers": 4,
     "epochs": 15,
     "patience": 5,
     "learning_rate": 1e-4,
@@ -51,38 +55,8 @@ DEFAULT_CONFIG = {
 }
 
 
-class SimpleCNN(nn.Module):
-    def __init__(self, tabular_dim: int = 0, num_classes: int = 1):
-        super().__init__()
-        self.backbone = nn.Sequential(
-            nn.Conv2d(3, 32, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
-            nn.Conv2d(32, 64, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
-            nn.Conv2d(64, 128, 3, padding=1), nn.ReLU(), nn.AdaptiveAvgPool2d(1),
-            nn.Flatten(),
-        )
-        self.embed_dim = 128
-        head_input_dim = 128 + tabular_dim
-        self.head = nn.Sequential(
-            nn.Linear(head_input_dim, 64),
-            nn.ReLU(),
-            nn.Linear(64, num_classes),
-        )
-
-    def encode(self, image):
-        return self.backbone(image)
-
-    def forward(self, batch):
-        embedding = self.encode(batch["image"])
-        if "tabular" in batch:
-            embedding = torch.cat([embedding, batch["tabular"]], dim=1)
-        return self.head(embedding).squeeze(-1)
-
-
-def default_model_factory(config: Dict, tabular_dim: int = 0):
-    return SimpleCNN(tabular_dim=tabular_dim, num_classes=1)
-
-
 def merge_config(overrides: Optional[Dict] = None) -> Dict:
+    """Merge user overrides into a deep copy of the default configuration."""
     config = copy.deepcopy(DEFAULT_CONFIG)
     if overrides:
         config.update(overrides)
@@ -90,6 +64,7 @@ def merge_config(overrides: Optional[Dict] = None) -> Dict:
 
 
 def update_embedding_cache(model, dataset: ISICDataset, device: str, batch_size: int = 64) -> Dict[str, np.ndarray]:
+    """Precompute image embeddings for all lesions in a dataset to use as patient context."""
     model.eval()
     cache = {}
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_with_padding)
@@ -105,6 +80,7 @@ def update_embedding_cache(model, dataset: ISICDataset, device: str, batch_size:
 
 
 def evaluate_model(model, loader, device: str) -> Dict[str, float]:
+    """Run inference on a validation loader and return metrics, true labels, and predictions."""
     model.eval()
     all_targets, all_preds = [], []
 
@@ -122,6 +98,7 @@ def evaluate_model(model, loader, device: str) -> Dict[str, float]:
 
 
 def train_single_run(config: Dict, model_factory: Callable, seed: int, fold: int, df: pd.DataFrame) -> Dict:
+    """Train a single (seed, fold) combination. Returns metrics, history, and predictions."""
     set_seed(seed)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -185,7 +162,9 @@ def train_single_run(config: Dict, model_factory: Callable, seed: int, fold: int
 
     for epoch in range(config["epochs"]):
         if config["return_patient_context"] and epoch > 0:
-            cache = update_embedding_cache(model, train_dataset, device)
+            train_cache = update_embedding_cache(model, train_dataset, device)
+            val_cache = update_embedding_cache(model, val_dataset, device)
+            cache = {**train_cache, **val_cache}
             train_dataset.update_embedding_cache(cache)
             val_dataset.update_embedding_cache(cache)
 
@@ -253,9 +232,10 @@ def train_single_run(config: Dict, model_factory: Callable, seed: int, fold: int
 
 
 def run_multi_seed_experiment(
-    overrides: Optional[Dict] = None,
-    model_factory: Callable = default_model_factory,
+    overrides: Dict,
+    model_factory: Callable,
 ) -> Dict:
+    """Run cross‑validation across multiple seeds, aggregate results, and save best model."""
     config = merge_config(overrides)
     df = pd.read_csv(config["splits_path"], low_memory=False)
 
@@ -308,21 +288,3 @@ def run_multi_seed_experiment(
 
     logger.info(f"Experiment complete: {config['experiment_name']} in {summary['elapsed_seconds']:.1f}s")
     return summary
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-
-    smoke_config = {
-        "experiment_name": "smoke_test",
-        "epochs": 2,
-        "patience": 5,
-        "swa_start_epoch": 999,
-        "seeds": [42],
-        "n_folds": 2,
-        "save_best_model": False,
-        "save_predictions": False,
-    }
-
-    summary = run_multi_seed_experiment(overrides=smoke_config)
-    print(f"\nSmoke test complete. pAUC mean = {summary['mean']:.4f}")

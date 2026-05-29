@@ -1,3 +1,7 @@
+"""
+Loss functions for binary classification with handling of class imbalance: BCE, weighted BCE, focal loss, and focal loss with OHEM.
+
+"""
 import logging
 from typing import Optional
 
@@ -9,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class WeightedBCELoss(nn.Module):
+    """BCE with a positive class weight; allows manual control of imbalance."""
     def __init__(self, pos_weight: float = 1.0):
         super().__init__()
         self.pos_weight = pos_weight
@@ -23,6 +28,7 @@ class WeightedBCELoss(nn.Module):
 
 
 class FocalLoss(nn.Module):
+    """Focal loss that down‑weights easy examples, focusing training on hard misclassifications."""
     def __init__(self, gamma: float = 2.0, pos_weight: float = 1.0):
         super().__init__()
         self.gamma = gamma
@@ -42,6 +48,7 @@ class FocalLoss(nn.Module):
 
 
 class FocalLossWithOHEM(nn.Module):
+    """Focal loss combined with online hard example mining (OHEM) – keeps only hardest negative samples."""
     def __init__(self, gamma: float = 2.0, pos_weight: float = 1.0, ohem_ratio: float = 0.5):
         super().__init__()
         self.gamma = gamma
@@ -78,6 +85,7 @@ class FocalLossWithOHEM(nn.Module):
 
 
 def get_loss_function(loss_name: str, pos_weight: Optional[float] = None, gamma: float = 2.0, ohem_ratio: float = 0.5) -> nn.Module:
+    """Factory that returns the requested loss module initialized with given parameters."""
     if pos_weight is None:
         pos_weight = 1.0
 
@@ -101,6 +109,7 @@ def get_loss_function(loss_name: str, pos_weight: Optional[float] = None, gamma:
 
 
 def compute_pos_weight(n_negative: int, n_positive: int) -> float:
+    """Compute positive class weight for use in weighted losses."""
     if n_positive == 0:
         raise ValueError("Cannot compute pos_weight with zero positive samples")
     weight = n_negative / n_positive

@@ -1,3 +1,8 @@
+"""
+Unit tests for classification metrics (pAUC, AUC, sensitivity, F1) used in model evaluation.
+
+"""
+
 import numpy as np
 import pytest
 from training.metrics import (

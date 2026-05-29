@@ -1,5 +1,10 @@
+"""
+Bootstrap confidence intervals and paired hypothesis testing for comparing model performance metrics.
+
+"""
+
 import logging
-from typing import Dict, List, Tuple
+from typing import Dict
 
 import numpy as np
 
@@ -16,6 +21,7 @@ def bootstrap_confidence_interval(
     ci_level: float = DEFAULT_CI_LEVEL,
     seed: int = DEFAULT_SEED,
 ) -> Dict[str, float]:
+    """Compute bootstrap CI for the mean of a set of measurements (e.g., AUROC across folds)."""
     measurements = np.asarray(measurements)
 
     if len(measurements) == 0:
@@ -48,6 +54,7 @@ def paired_bootstrap_test(
     n_bootstrap: int = DEFAULT_N_BOOTSTRAP,
     seed: int = DEFAULT_SEED,
 ) -> Dict[str, float]:
+    """Paired bootstrap test for difference in means between two matched measurements sets."""
     measurements_a = np.asarray(measurements_a)
     measurements_b = np.asarray(measurements_b)
 
@@ -79,14 +86,17 @@ def paired_bootstrap_test(
 
 
 def format_result_with_ci(stats: Dict[str, float], decimals: int = 4) -> str:
+    """Format mean with 95% bootstrap CI as 'mean [low, high]'."""
     return f"{stats['mean']:.{decimals}f} [{stats['ci_low']:.{decimals}f}, {stats['ci_high']:.{decimals}f}]"
 
 
 def format_result_with_std(stats: Dict[str, float], decimals: int = 4) -> str:
+    """Format mean with standard deviation as 'mean ± std'."""
     return f"{stats['mean']:.{decimals}f} ± {stats['std']:.{decimals}f}"
 
 
 def summarise_configuration(name: str, measurements: np.ndarray) -> Dict[str, float]:
+    """Log and return bootstrap stats for a single model configuration."""
     stats = bootstrap_confidence_interval(measurements)
     logger.info(
         f"{name}: mean={stats['mean']:.4f}, std={stats['std']:.4f}, "
@@ -96,6 +106,7 @@ def summarise_configuration(name: str, measurements: np.ndarray) -> Dict[str, fl
 
 
 def compare_configurations(name_a: str, measurements_a: np.ndarray, name_b: str, measurements_b: np.ndarray) -> Dict[str, float]:
+    """Log and return paired bootstrap test results comparing two configurations."""
     test_result = paired_bootstrap_test(measurements_a, measurements_b)
     significance = "significant" if test_result["is_significant_at_05"] else "not significant"
     logger.info(
