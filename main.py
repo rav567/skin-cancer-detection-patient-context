@@ -89,7 +89,7 @@ def main():
     try:
         from datasets.download import download_dataset
         download_dataset()
-    except Exception as exc:
+    except BaseException as exc:
         logger.warning("Kaggle download skipped (%s). Continuing with available or synthetic data.", exc)
 
     if META.exists() and IMGS.exists() and any(IMGS.iterdir()):
