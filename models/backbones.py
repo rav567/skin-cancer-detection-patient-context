@@ -30,12 +30,12 @@ class BackboneClassifier(nn.Module):
         timm_name = SUPPORTED_BACKBONES[backbone_name]
         self.backbone_name = backbone_name
         self.backbone = timm.create_model(
-        timm_name,
-        pretrained=pretrained,
-        num_classes=0,
-        global_pool="avg",
-        img_size=128 if "vit" in backbone_name else None,
-    )
+            timm_name,
+            pretrained=pretrained,
+            num_classes=0,
+            global_pool="avg",
+            img_size=128 if "vit" in backbone_name else None,
+        )
         self.embed_dim = self.backbone.num_features
 
         head_input_dim = self.embed_dim + tabular_dim

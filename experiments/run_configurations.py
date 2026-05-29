@@ -93,10 +93,12 @@ def run_configuration_d():
 
 
 def run_all_configurations():
-    """Run Config C and D (A and B assumed done), log results."""
-    logger.info("PHASE D: Running configurations C and D (A and B already complete)")
+    """Run all four configurations A-D and log results."""
+    logger.info("PHASE D: Running all configurations A, B, C, D")
 
     summaries = {
+        "A": run_configuration_a(),
+        "B": run_configuration_b(),
         "C": run_configuration_c(),
         "D": run_configuration_d(),
     }

@@ -1,166 +1,108 @@
-# ELEC0135: Applied Machine Learning Systems II
+# ELEC0135 AMLS II — ISIC 2024 Skin Cancer Detection
 
-## Assignment
-
-## 1. General Overview
-
-This assignment requires the development of a complete machine learning system addressing a real-world research competition challenge in computer vision.
-
-Each student must:
-
-- Select one public-domain competition (Kaggle or TopCoder).
-- Develop and test a machine learning solution.
-- Propose and validate a clear research hypothesis.
-- Report findings in the format of a TMLR-style conference paper.
-
-The project must demonstrate:
-
-- Sound model design
-- Proper training/validation/testing methodology
-- Experimental analysis and ablation studies
-- Reproducibility
-- Balanced complexity vs performance trade-offs
-
-The goal is not to achieve leaderboard dominance, but to demonstrate strong reasoning, engineering design, and experimental validation.
+**Competition:** [ISIC 2024 – Skin Cancer Detection with 3D-TBP](https://www.kaggle.com/competitions/isic-2024-challenge)  
+**Task:** Binary classification — benign vs. malignant skin lesions  
+**Metric:** Partial AUC above 80% TPR (pAUC)
 
 ---
 
-## 2. Challenge Selection
+## Research Hypothesis
 
-You must select **one competition** from:
-
-- Kaggle (past 3 years recommended)  
-  https://www.kaggle.com/competitions  
-
-- TopCoder challenges  
-  https://www.topcoder.com/challenges?bucket=allPast&tab=details  
-
-### Allowed Task Types (Computer Vision Only)
-
-You must choose one of:
-
-- Image classification
-- Image segmentation
-- Image inpainting / super resolution
-- [Advanced] Conditional generation / multimodality
-- [Advanced] Image generation
-
-⚠ NLP-only competitions are not allowed.
-
-If selecting an **advanced generative project**, you must:
-
-- Justify feasibility
-- Specify dataset size
-- Specify model size
-- Estimate compute requirements
-- Use compact models or parameter-efficient fine-tuning
-- Avoid training large-scale generative models from scratch
-- Get it approved by the team beforehand
+Patient context — the set of other lesions belonging to the same patient — provides a complementary signal to image features alone, and incorporating it via a learned aggregation module will improve melanoma detection performance over image-only and image+tabular baselines.
 
 ---
 
-## 3. Research Hypothesis
+## Repository Structure
 
-Your project must be structured around a clearly defined hypothesis, such as:
-
-- Architectural comparison / Inductive bias comparison (e.g., CNNs vs ViT, Attention in Segmentation, etc.)
-- Training Strategies & Meta-Learning (e.g., transfer learning vs training from scratch, data augmentation, regularization, etc.)
-- Objective functions (e.g., auxiliary losses, various training losses, etc.)
-- Label smoothing
-- Class imbalance handling
-- Robustness to noise
-- Ensemble methods
-
-Your experiments must test this hypothesis through empirical evaluation.
-
----
-
-## 4. Constraints
-
-- No paid services.
-- Use only free/public datasets and infrastructure.
-- No external database services.
-  - Spawn a local database if needed.
-  - If remote, it must remain accessible for 2 months after submission.
-- Plain Python only.
-- No notebooks.
-- No Makefiles.
-- Deterministic execution (fixed seeds).
-- No interactive input.
-- All plots saved to disk.
-- Training must be feasible on limited compute.
-
-### AI Usage Disclosure
-
-This assignment follows UCL Category 2 GenAI usage.
-
-- Undeclared GenAI use will be penalised.
-- Reports and code not using GenAI are rewarded.
-- If used, clearly disclose usage in the report.
-
----
-
-## 5. Deliverables
-
-### Report (80%)
-
-- Max 8 pages (excluding references + optional appendix).
-- Must use TMLR template (provided on Moodle).
-- Must be submitted in PDF format.
-- File naming format:
-
-  Report_AMLSII_25-26_SNXXXXXXXX.pdf
-
-- Include:
-  - Student number
-  - GitHub repo URL
-- Do NOT include your name.
-
-### Code (20%)
-
-The repository must:
-
-- Produce all experimental evidence presented in the report.
-- Contain a single entry point: `main.py` located in the root directory.
-- Execute the complete experimental workflow automatically when running:
-
-  ```bash
-  python main.py
-
-- Include `environment.yml` in root.
-- Be fully reproducible.
-- Require no manual intervention.
-
-Autograding will:
-
-1. Install `environment.yml`
-2. Run `python main.py`
-
-Any manual README instructions will be ignored.
+```
+main.py                     # Single entry point — runs the full pipeline
+environment.yml             # Conda environment specification
+requirements.txt            # Python package dependencies
+datasets/
+  download.py               # Kaggle API download with retry logic
+  schema.py                 # Pydantic-based metadata validation
+  splits.py                 # Patient-grouped stratified k-fold splitting
+  exploration.py            # EDA figures (class distribution, lesions per patient, etc.)
+  isic_dataset.py           # PyTorch Dataset with image, tabular, and context support
+  samplers.py               # Balanced batch samplers for class imbalance
+  transforms.py             # Albumentations augmentation pipelines
+models/
+  backbones.py              # EfficientNet-B0 / ResNet-50 / ViT-Tiny classifiers
+  patient_context.py        # Mean and attention-based context aggregation modules
+  full_pipeline.py          # End-to-end multimodal model (image + tabular + context)
+training/
+  trainer.py                # Multi-seed cross-validated training loop (SWA, AMP, early stopping)
+  losses.py                 # Focal loss and OHEM loss
+  metrics.py                # pAUC, AUC, sensitivity at specificity, F1
+  stats.py                  # Bootstrap confidence intervals and variance summaries
+baselines/
+  naive.py                  # Majority-class baseline
+  tabular.py                # LightGBM on metadata features
+  image_only.py             # EfficientNet-B0 image-only baseline
+  compare.py                # Baseline comparison table and forest plot
+experiments/
+  run_configurations.py     # Configs A–D: image / tabular / context / combined
+  run_ablations.py          # Ablation: aggregation (mean vs attention) and fusion strategies
+analysis/
+  training_curves.py        # Training loss and validation pAUC plots
+  master_results.py         # Master summary table and dot plot with 95% CIs
+  ablation_summary.py       # Ablation bar chart
+  variance_analysis.py      # Seed/fold variance plots
+  umap_analysis.py          # UMAP projection of learned embeddings
+utils/
+  seed.py                   # Global seed setting for reproducibility
+tests/
+  test_metrics.py           # Unit tests for evaluation metrics
+results/                    # All outputs saved here (created automatically)
+```
 
 ---
 
-## 6. Marking Scheme
+## Setup
 
-### REPORT — 80%
+```bash
+conda env create -f environment.yml
+conda activate amls2-final
+```
 
-| Section | Weight |
-|----------|--------|
-| Abstract | 5% |
-| Introduction | 5% |
-| Literature Review | 10% |
-| Model Design & Methodology | 20% |
-| Implementation Details | 20% |
-| Experimental Results, Analysis & Conclusion | 20% |
+---
 
-### CODE — 20%
+## Running the Pipeline
 
-| Component | Weight |
-|------------|--------|
-| Reproducibility | 7% |
-| Code quality & documentation | 7% |
-| Code organisation | 2.5% |
-| Git & GitHub usage | 2.5% |
+```bash
+python main.py
+```
 
-Performance alone does not determine marks.  
-Clarity, reasoning, experimental validation, and engineering design matter most.
+The pipeline is fully automated and requires no user input. It will:
+
+1. Attempt to download the ISIC 2024 dataset via the Kaggle API (requires `~/.kaggle/kaggle.json`). If credentials are absent it falls back to a small synthetic dataset that exercises all code paths.
+2. Validate metadata with Pydantic schema checks.
+3. Create patient-grouped stratified 5-fold splits (no patient leakage).
+4. Generate EDA figures.
+5. Run naive and LightGBM tabular baselines.
+6. Train all model configurations (A: image-only, B: image+tabular, C: image+context, D: combined).
+7. Run ablation studies over aggregation and fusion strategies.
+8. Save all result figures and CSV summaries to `results/`.
+
+All random seeds are fixed (seed = 42). Plots are saved as PDFs under `results/figures/` and `results/eda/`.
+
+---
+
+## Kaggle Authentication (for real data)
+
+Place your Kaggle API token at `~/.kaggle/kaggle.json`:
+
+```json
+{"username": "your_username", "key": "your_api_key"}
+```
+
+The token can be generated from your Kaggle account settings page.
+
+---
+
+## Key Design Choices
+
+- **Class imbalance:** ~0.4% malignant prevalence handled via balanced batch sampling (1:3 ratio) and focal loss (γ = 2).
+- **Patient context:** Lesion embeddings from co-located lesions on the same patient are aggregated (mean or attention) and fused with the query embedding via residual difference.
+- **Stochastic Weight Averaging (SWA):** Applied in later epochs to improve generalisation.
+- **Evaluation metric:** Partial AUC above 80% TPR, matching the competition metric, to reflect clinical relevance at high sensitivity.

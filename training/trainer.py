@@ -1,5 +1,5 @@
 """
-Multi‑seed, cross‑validated training loop with SWA, AMP, patient context caching, and experiment tracking.
+Multi seed, cross validated training loop with SWA, AMP, patient context caching, and experiment tracking.
 
 """
 
