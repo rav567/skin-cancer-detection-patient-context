@@ -1,3 +1,8 @@
+"""
+Download and extract the ISIC 2024 dataset from Kaggle with retries.
+
+"""
+
 import logging
 import time
 import zipfile
@@ -18,12 +23,14 @@ RETRY_DELAY_SECONDS = 30
 
 
 def data_already_exists(data_dir: Path = DATA_DIR) -> bool:
+    """Check whether all expected dataset files already exist."""
     if not data_dir.exists():
         return False
     return all((data_dir / name).exists() for name in EXPECTED_FILES)
 
 
 def authenticate_kaggle():
+    """Authenticate with the Kaggle API and return the API client."""
     from kaggle.api.kaggle_api_extended import KaggleApi
     api = KaggleApi()
     api.authenticate()
@@ -31,11 +38,13 @@ def authenticate_kaggle():
 
 
 def download_competition_files(api, target_dir: Path) -> None:
+    """Download the competition data zip file to the target directory."""
     target_dir.mkdir(parents=True, exist_ok=True)
     api.competition_download_files(COMPETITION_NAME, path=str(target_dir), quiet=False)
 
 
 def extract_zip(target_dir: Path) -> None:
+    """Extract the downloaded zip and remove it."""
     zip_path = target_dir / f"{COMPETITION_NAME}.zip"
     if not zip_path.exists():
         raise FileNotFoundError(f"Expected zip not found at {zip_path}")
@@ -45,12 +54,14 @@ def extract_zip(target_dir: Path) -> None:
 
 
 def verify_download(target_dir: Path) -> None:
+    """Raise an error if any expected file is missing after extraction."""
     missing = [name for name in EXPECTED_FILES if not (target_dir / name).exists()]
     if missing:
         raise RuntimeError(f"Download verification failed. Missing: {missing}")
 
 
 def download_dataset(force: bool = False) -> None:
+    """Download the dataset (with retries) unless already present and force=False."""
     if not force and data_already_exists():
         logger.info("Dataset already present. Skipping download.")
         return

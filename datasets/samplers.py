@@ -1,3 +1,7 @@
+"""
+A batch sampler that enforces a fixed ratio of positive to negative samples per batch.
+
+"""
 import logging
 from typing import Iterator, List
 
@@ -9,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class BalancedBatchSampler(Sampler[List[int]]):
+    """Sampler that yields batches with a configurable positive/negative ratio."""
     def __init__(
         self,
         labels: np.ndarray,
@@ -16,7 +21,7 @@ class BalancedBatchSampler(Sampler[List[int]]):
         positive_ratio: float = 0.25,
         seed: int = 42,
     ):
-        super().__init__(data_source=None)
+        super().__init__()
 
         self.labels = np.asarray(labels)
         self.batch_size = batch_size
@@ -44,6 +49,7 @@ class BalancedBatchSampler(Sampler[List[int]]):
         )
 
     def __iter__(self) -> Iterator[List[int]]:
+        """Yield shuffled batches, each with the specified class ratio."""
         rng = np.random.default_rng(self.seed)
 
         shuffled_negatives = rng.permutation(self.negative_indices)
@@ -73,6 +79,7 @@ def get_sampler(
     batch_size: int = 32,
     seed: int = 42,
 ) -> BalancedBatchSampler:
+    """Create a BalancedBatchSampler from a named strategy (e.g., 'balanced_1to3')."""
     ratios = {
         "balanced_1to1": 0.50,
         "balanced_1to3": 0.25,

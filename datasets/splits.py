@@ -1,7 +1,9 @@
+"""
+Subsample patients, create patient‑grouped stratified folds, and save the splits.
+
+"""
 import logging
 from pathlib import Path
-from typing import Tuple
-
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import StratifiedGroupKFold
@@ -11,11 +13,12 @@ logger = logging.getLogger(__name__)
 DATA_DIR = Path("datasets")
 SPLITS_DIR = DATA_DIR / "splits"
 RANDOM_SEED = 42
-TARGET_BENIGN_PATIENTS = 100
+TARGET_BENIGN_PATIENTS = 10
 N_FOLDS = 5
 
 
 def subsample_patients(df: pd.DataFrame, target_benign_patients: int = TARGET_BENIGN_PATIENTS, max_lesions_per_patient: int = 200, seed: int = RANDOM_SEED) -> pd.DataFrame:
+    """Keep all malignant patients, sample benign-only patients, then cap lesions per patient."""
     patients_with_malignancy = df.loc[df["target"] == 1, "patient_id"].unique()
     logger.info(f"Keeping all {len(patients_with_malignancy)} patients with malignancies")
 
@@ -33,7 +36,7 @@ def subsample_patients(df: pd.DataFrame, target_benign_patients: int = TARGET_BE
     logger.info(f"Before per-patient cap: {len(subsampled):,} lesions")
 
     capped_parts = []
-    for patient_id, group in subsampled.groupby("patient_id"):
+    for _, group in subsampled.groupby("patient_id"):
         malignant_in_group = group[group["target"] == 1]
         benign_in_group = group[group["target"] == 0]
         n_benign_to_keep = max(0, max_lesions_per_patient - len(malignant_in_group))
@@ -51,6 +54,7 @@ def subsample_patients(df: pd.DataFrame, target_benign_patients: int = TARGET_BE
 
 
 def create_patient_grouped_folds(df: pd.DataFrame, n_folds: int = N_FOLDS, seed: int = RANDOM_SEED) -> pd.DataFrame:
+    """Assign folds so all lesions of a patient stay together, stratified by malignancy presence."""
     df = df.copy()
     df["fold"] = -1
 
@@ -73,6 +77,7 @@ def create_patient_grouped_folds(df: pd.DataFrame, n_folds: int = N_FOLDS, seed:
 
 
 def assert_no_patient_leakage(df: pd.DataFrame) -> None:
+    """Raise an error if any patient appears in more than one fold."""
     patient_fold_counts = df.groupby("patient_id")["fold"].nunique()
     leaked_patients = patient_fold_counts[patient_fold_counts > 1]
     if len(leaked_patients) > 0:
@@ -84,6 +89,7 @@ def assert_no_patient_leakage(df: pd.DataFrame) -> None:
 
 
 def log_fold_statistics(df: pd.DataFrame) -> None:
+    """Log the lesion, patient, and malignancy counts for each fold."""
     logger.info("Fold composition:")
     fold_stats = df.groupby("fold").agg(
         n_lesions=("isic_id", "count"),
@@ -100,6 +106,7 @@ def log_fold_statistics(df: pd.DataFrame) -> None:
 
 
 def save_splits(df: pd.DataFrame, splits_dir: Path = SPLITS_DIR) -> None:
+    """Write the DataFrame with fold column to a CSV file."""
     splits_dir.mkdir(parents=True, exist_ok=True)
     output_path = splits_dir / "subsampled_with_folds.csv"
     df.to_csv(output_path, index=False)
@@ -107,8 +114,9 @@ def save_splits(df: pd.DataFrame, splits_dir: Path = SPLITS_DIR) -> None:
 
 
 def prepare_splits(metadata_df: pd.DataFrame) -> pd.DataFrame:
+    """Run the full pipeline: subsample, create folds, check leakage, log stats, save."""
     logger.info("Subsampling patients")
-    subsampled = subsample_patients(metadata_df)
+    subsampled = subsample_patients(metadata_df, max_lesions_per_patient=50)
 
     logger.info("Creating patient-grouped 5-fold splits")
     with_folds = create_patient_grouped_folds(subsampled)
@@ -123,7 +131,7 @@ def prepare_splits(metadata_df: pd.DataFrame) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    from schema import validate_metadata
+    from datasets.schema import validate_metadata
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     metadata_df = validate_metadata()

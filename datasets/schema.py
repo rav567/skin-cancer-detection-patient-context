@@ -1,3 +1,7 @@
+"""
+Validate the ISIC 2024 metadata CSV and check for missing image files.
+
+"""
 import logging
 from pathlib import Path
 from typing import Optional
@@ -25,6 +29,7 @@ VALID_SEX_VALUES = {"male", "female"}
 
 
 class LesionRecord(BaseModel):
+    """Pydantic model enforcing expected types and ranges for a single lesion record."""
     isic_id: str
     patient_id: str
     target: int = Field(ge=0, le=1)
@@ -42,12 +47,14 @@ class LesionRecord(BaseModel):
 
 
 def check_required_columns(df: pd.DataFrame) -> None:
+    """Raise an error if any required column is missing from the DataFrame."""
     missing = [col for col in REQUIRED_COLUMNS if col not in df.columns]
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
 
 
 def check_no_nulls_in_critical_fields(df: pd.DataFrame) -> None:
+    """Raise an error if any critical field (ID or target) contains nulls."""
     critical = ["isic_id", "patient_id", "target"]
     for column in critical:
         null_count = df[column].isna().sum()
@@ -56,18 +63,21 @@ def check_no_nulls_in_critical_fields(df: pd.DataFrame) -> None:
 
 
 def check_no_duplicate_ids(df: pd.DataFrame) -> None:
+    """Raise an error if any isic_id appears more than once."""
     duplicate_count = df["isic_id"].duplicated().sum()
     if duplicate_count > 0:
         raise ValueError(f"Found {duplicate_count} duplicate isic_id values")
 
 
 def check_target_values(df: pd.DataFrame) -> None:
+    """Raise an error if target values are not strictly 0 or 1."""
     invalid_targets = df.loc[~df["target"].isin([0, 1]), "target"].unique()
     if len(invalid_targets) > 0:
         raise ValueError(f"Found invalid target values: {invalid_targets}")
 
 
 def check_image_files_exist(df: pd.DataFrame, image_dir: Path = IMAGE_DIR, sample_size: int = 100) -> None:
+    """Spot‑check that a random sample of image files actually exist on disk."""
     sample = df.sample(n=min(sample_size, len(df)), random_state=42)
     missing = []
     for isic_id in sample["isic_id"]:
@@ -82,6 +92,7 @@ def check_image_files_exist(df: pd.DataFrame, image_dir: Path = IMAGE_DIR, sampl
 
 
 def validate_sample_records(df: pd.DataFrame, sample_size: int = 1000) -> None:
+    """Run Pydantic schema validation on a random sample of records."""
     sample = df.sample(n=min(sample_size, len(df)), random_state=42)
     errors = []
     for record_dict in sample.to_dict(orient="records"):
@@ -96,6 +107,7 @@ def validate_sample_records(df: pd.DataFrame, sample_size: int = 1000) -> None:
 
 
 def validate_metadata(metadata_path: Path = METADATA_PATH, image_dir: Path = IMAGE_DIR) -> pd.DataFrame:
+    """Run all validation checks and return the loaded DataFrame if everything passes."""
     logger.info(f"Loading metadata from {metadata_path}")
     df = pd.read_csv(metadata_path, low_memory=False)
     logger.info(f"Loaded {len(df):,} rows with {len(df.columns)} columns")

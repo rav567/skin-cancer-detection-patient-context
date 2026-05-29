@@ -1,7 +1,11 @@
+"""
+PyTorch Dataset for ISIC 2024 images with optional tabular/patient‑context features.
+
+"""
+
 import logging
 from pathlib import Path
-from typing import Dict, Optional
-
+from typing import Dict
 import numpy as np
 import pandas as pd
 import torch
@@ -18,12 +22,14 @@ CATEGORICAL_FEATURES = ["sex", "anatom_site_general"]
 
 
 def build_tabular_encoder(df: pd.DataFrame):
+    """Return one‑hot encoder column names and total feature dimension."""
     encoder = pd.get_dummies(df[CATEGORICAL_FEATURES], dummy_na=False).columns.tolist()
     feature_dim = len(NUMERIC_FEATURES) + len(encoder)
     return encoder, feature_dim
 
 
 def encode_tabular_features(row: pd.Series, encoder_columns: list) -> np.ndarray:
+    """Convert a single row’s numeric and categorical fields into a float32 array."""
     numeric = [0.0 if pd.isna(row[c]) else float(row[c]) for c in NUMERIC_FEATURES]
     one_hot_row = pd.get_dummies(pd.DataFrame([row[CATEGORICAL_FEATURES]]), dummy_na=False)
     one_hot = [float(one_hot_row[c].iloc[0]) if c in one_hot_row.columns else 0.0 for c in encoder_columns]
@@ -31,9 +37,11 @@ def encode_tabular_features(row: pd.Series, encoder_columns: list) -> np.ndarray
 
 
 class ISICDataset(Dataset):
+    """Dataset that loads images and optionally returns tabular data and patient‑context embeddings."""
     def __init__(self, df, image_dir=IMAGE_DIR, transform=None, return_tabular=False,
                  return_patient_context=False, patient_embedding_cache=None,
                  max_context_lesions=50, encoder_columns=None):
+        """Set up the dataset, image directory, transformations, and cache."""
         self.df = df.reset_index(drop=True)
         self.image_dir = Path(image_dir)
         self.transform = transform
@@ -48,10 +56,12 @@ class ISICDataset(Dataset):
                     f"tabular={return_tabular}, context={return_patient_context}")
 
     def update_embedding_cache(self, cache: Dict[str, np.ndarray]) -> None:
+        """Replace the in‑memory cache of lesion embeddings."""
         self.cache = cache
         logger.info(f"Updated cache: {len(cache):,} embeddings")
 
     def _get_context(self, patient_id: str, current_id: str):
+        """Return other lesions’ cached embeddings for the same patient (padded)."""
         others = [lid for lid in self.patient_to_lesions.get(patient_id, []) if lid != current_id]
         if len(others) > self.max_context:
             others = list(np.random.default_rng().choice(others, self.max_context, replace=False))
@@ -63,9 +73,11 @@ class ISICDataset(Dataset):
         return torch.from_numpy(np.stack(embeds)).float(), torch.ones(len(embeds), dtype=torch.bool)
 
     def __len__(self) -> int:
+        """Number of lesions in the dataset."""
         return len(self.df)
 
     def __getitem__(self, idx: int):
+        """Load the image, target, and optional tabular/context data for one lesion."""
         row = self.df.iloc[idx]
         image = np.array(Image.open(self.image_dir / f"{row['isic_id']}.jpg").convert("RGB"))
         if self.transform is not None:
@@ -90,6 +102,7 @@ class ISICDataset(Dataset):
 
 
 def collate_with_padding(batch):
+    """Stack images/targets and pad patient‑context sequences to the same length."""
     output = {
         "image": torch.stack([b["image"] for b in batch]),
         "target": torch.stack([b["target"] for b in batch]),

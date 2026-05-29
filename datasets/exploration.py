@@ -1,10 +1,14 @@
+"""
+Generate exploratory data analysis figures for the ISIC 2024 dataset.
+
+"""
+
 import logging
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
 from PIL import Image
 
 logger = logging.getLogger(__name__)
@@ -20,6 +24,7 @@ plt.rcParams["savefig.dpi"] = 300
 
 
 def plot_class_distribution(df: pd.DataFrame, output_dir: Path) -> None:
+    """Bar chart of benign vs malignant count (log scale)."""
     counts = df["target"].value_counts().sort_index()
     labels = ["Benign", "Malignant"]
 
@@ -37,6 +42,7 @@ def plot_class_distribution(df: pd.DataFrame, output_dir: Path) -> None:
 
 
 def plot_lesions_per_patient(df: pd.DataFrame, output_dir: Path) -> None:
+    """Histogram of lesions per patient (log scale)."""
     counts = df.groupby("patient_id").size()
 
     fig, ax = plt.subplots(figsize=(5, 3.5))
@@ -51,6 +57,7 @@ def plot_lesions_per_patient(df: pd.DataFrame, output_dir: Path) -> None:
 
 
 def plot_malignancy_by_anatomical_site(df: pd.DataFrame, output_dir: Path) -> None:
+    """Horizontal bar chart of malignancy rate per anatomical site."""
     grouped = df.groupby("anatom_site_general").agg(n=("target", "count"), n_malignant=("target", "sum"))
     grouped["malignancy_rate"] = grouped["n_malignant"] / grouped["n"]
     grouped = grouped.sort_values("malignancy_rate", ascending=True)
@@ -67,6 +74,7 @@ def plot_malignancy_by_anatomical_site(df: pd.DataFrame, output_dir: Path) -> No
 
 
 def plot_sample_images(df: pd.DataFrame, image_dir: Path, output_dir: Path, n_per_class: int = 6) -> None:
+    """Grid of randomly chosen benign and malignant sample images."""
     rng = np.random.default_rng(RANDOM_SEED)
     benign_ids = df.loc[df["target"] == 0, "isic_id"].sample(n=n_per_class, random_state=RANDOM_SEED).values
     malignant_ids = df.loc[df["target"] == 1, "isic_id"].sample(n=n_per_class, random_state=RANDOM_SEED).values
@@ -91,6 +99,7 @@ def plot_sample_images(df: pd.DataFrame, image_dir: Path, output_dir: Path, n_pe
 
 
 def plot_leakage_verification(df: pd.DataFrame, output_dir: Path) -> None:
+    """Bar chart showing how many folds each patient appears in (should be 1)."""
     matrix = df.groupby(["patient_id", "fold"]).size().unstack(fill_value=0)
     binary_matrix = (matrix > 0).astype(int)
 
@@ -110,6 +119,7 @@ def plot_leakage_verification(df: pd.DataFrame, output_dir: Path) -> None:
 
 
 def generate_all_eda_figures(df: pd.DataFrame, image_dir: Path = IMAGE_DIR, output_dir: Path = RESULTS_DIR) -> None:
+    """Generate and save all five EDA figures."""
     output_dir.mkdir(parents=True, exist_ok=True)
     logger.info(f"Generating EDA figures in {output_dir}")
 

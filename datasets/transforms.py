@@ -1,6 +1,9 @@
-import logging
-from typing import Tuple
+"""
+Image augmentation pipelines (standard, clinical, evaluation) using Albumentations.
 
+"""
+
+import logging
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
@@ -12,6 +15,7 @@ IMAGENET_STD = (0.229, 0.224, 0.225)
 
 
 def get_train_transforms_standard(image_size: int = DEFAULT_IMAGE_SIZE) -> A.Compose:
+    """Standard training augmentations with flips, rotation, and strong colour jitter."""
     return A.Compose([
         A.Resize(height=image_size, width=image_size),
         A.HorizontalFlip(p=0.5),
@@ -26,6 +30,7 @@ def get_train_transforms_standard(image_size: int = DEFAULT_IMAGE_SIZE) -> A.Com
 
 
 def get_train_transforms_clinical(image_size: int = DEFAULT_IMAGE_SIZE) -> A.Compose:
+    """Milder training augmentations suitable for clinical imaging (less colour jitter)."""
     return A.Compose([
         A.Resize(height=image_size, width=image_size),
         A.HorizontalFlip(p=0.5),
@@ -39,6 +44,7 @@ def get_train_transforms_clinical(image_size: int = DEFAULT_IMAGE_SIZE) -> A.Com
 
 
 def get_eval_transforms(image_size: int = DEFAULT_IMAGE_SIZE) -> A.Compose:
+    """Resize and normalise only – no augmentations for evaluation/inference."""
     return A.Compose([
         A.Resize(height=image_size, width=image_size),
         A.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
@@ -47,6 +53,7 @@ def get_eval_transforms(image_size: int = DEFAULT_IMAGE_SIZE) -> A.Compose:
 
 
 def get_transforms(name: str, image_size: int = DEFAULT_IMAGE_SIZE, training: bool = True) -> A.Compose:
+    """Return the training or evaluation transform pipeline by name."""
     if not training:
         logger.info(f"Using evaluation transforms (image_size={image_size})")
         return get_eval_transforms(image_size)
