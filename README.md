@@ -8,14 +8,14 @@
 
 ## Research Hypothesis
 
-Patient context — the set of other lesions belonging to the same patient — provides a complementary signal to image features alone, and incorporating it via a learned aggregation module will improve melanoma detection performance over image-only and image+tabular baselines.
+Patient context: the set of other lesions belonging to the same patient provides a complementary signal to image features alone, and incorporating it via a learned aggregation module will improve melanoma detection performance over image-only and image+tabular baselines.
 
 ---
 
 ## Repository Structure
 
 ```
-main.py                     # Single entry point — runs the full pipeline
+main.py                     # Single entry point, runs the full pipeline
 environment.yml             # Conda environment specification
 requirements.txt            # Python package dependencies
 datasets/
