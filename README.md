@@ -1,4 +1,4 @@
-# ELEC0135 AMLS II — ISIC 2024 Skin Cancer Detection
+# ELEC0135 AMLS II -- ISIC 2024 Skin Cancer Detection
 
 **Competition:** [ISIC 2024 – Skin Cancer Detection with 3D-TBP](https://www.kaggle.com/competitions/isic-2024-challenge)  
 **Task:** Binary classification — benign vs. malignant skin lesions  
