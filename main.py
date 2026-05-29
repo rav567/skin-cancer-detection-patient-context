@@ -107,6 +107,7 @@ def main():
         train_demo()
 
     compare_baselines()
+    os.makedirs("results/figures", exist_ok=True)
     plot_training_curves(LOG_PATH, "results/figures/training_curves.pdf")
     plot_master()
     plot_ablation()
